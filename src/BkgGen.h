@@ -9,12 +9,12 @@
 #include <vector>
 
 struct BkgGen {
-  double maxEta          { 1.0     };
+  double maxEta          { 1.1     };
   double dNdEta          { 650     };
   double T               { 0.291   };
   double minPtCut        { 0.2     };
   double PionMass        { 0.13957 };
-  bool   include_neutral { true    }; // increases nParticles by ratioof 1.5
+  bool   include_neutral { true    }; // increases nParticles by ratio of 1.5
   unsigned int seed      { 0       };
   double chargedRatio    { 2./3.   };
 

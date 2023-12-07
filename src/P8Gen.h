@@ -13,7 +13,7 @@ struct P8Gen {
   double sNN             { 200     };
   double pTHatMin        { 3.      };
   double pTHatMax        { 4.      };
-  double maxEta          { 1.0     };
+  double maxEta          { 1.1     };
   double minPtCut        { 0.2     };
   double PionMass        { 0.13957 };
   bool   usePionMass     { false   }; // will use actual particle mass

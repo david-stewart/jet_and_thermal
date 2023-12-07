@@ -11,14 +11,14 @@
 #include "fastjet/PseudoJet.hh"
 
 struct RhoMedianBkgClusterer {
-  float ghost_max_rap { 1.0 };
-  float ghost_R       { 0.1 };
+  float ghost_max_rap { 1.2 };
+  float ghost_R       { 0.01 };
   int   njets_remove  { 2   };
   fastjet::JetAlgorithm algorithm { fastjet::JetAlgorithm::kt_algorithm };
   fastjet::RecombinationScheme reco_scheme { fastjet::RecombinationScheme::E_scheme };
 
   float jet_R         { 0.4 };
-  float jet_max_rap   { 0.6   };
+  float jet_max_rap   { 0.7   };
 
   fastjet::JetDefinition jet_def_bkgd;
   fastjet::Selector      jet_selector;

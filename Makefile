@@ -18,7 +18,8 @@ bin/main: \
 	obj/JetIndicesMatcher.o \
 	obj/RhoMedianBkgClusterer.o \
 	obj/JetTree.o \
-	obj/JTWalker.o
+	obj/JTWalker.o \
+	obj/JetBranch.o
 	${CC} ${CFLAGS} -o $@ $^ ${LIB_TRI}
 
 bin/bkup: src/main_bkup.cc
@@ -47,3 +48,7 @@ obj/RhoMedianBkgClusterer.o: src/RhoMedianBkgClusterer.cc src/RhoMedianBkgCluste
 
 obj/JTWalker.o: src/JTWalker.cc src/JTWalker.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
+
+obj/JetBranch.o: src/JetBranch.cc src/JetBranch.h
+	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
+

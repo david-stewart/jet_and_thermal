@@ -27,8 +27,8 @@ vector<PseudoJet> BkgGen::operator()()
     part.reset_PtYPhiM(pt,eta,phi,PionMass);
 
     part.set_user_index(  // set user_index for charge: -1, 0, or 1
-        (rng.Uniform(0,1) > chargedRatio) ? 0
-        : rng.Integer(2) == 0 ? -1 : 1 );
+        (rng.Uniform(0,1) > chargedRatio) ? 100
+        : rng.Integer(2) == 0 ? -101 : 101 );
 
     eventBkg.push_back(part);
   }

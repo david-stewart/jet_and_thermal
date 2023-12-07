@@ -18,11 +18,11 @@ struct JetClusterer {
 
   // calculate areas with ghosts?
   bool  calc_area     { false };
-  float ghost_max_rap { 1.0   };
+  float ghost_max_rap { 1.2   };
   float ghost_R       { 0.1   };
 
   // jets
-  float jet_max_rap   { 0.6   };
+  float jet_max_rap   { 0.7   };
   float jet_R         { 0.4   };
 
   float min_jet_pt    { 0.2   };

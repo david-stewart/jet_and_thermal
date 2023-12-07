@@ -25,18 +25,12 @@
 #include "fastjet/ClusterSequenceArea.hh"
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/Selector.hh"
-#include "JetBranch.h"
-
-
-// Make truth and reco jets, and put matched jets into the TTree
-// also match to a qg, and see if they matched
+#include "JetTree.h"
 
 using namespace Pythia8;
 using namespace fastjet;
 using namespace std;
 
-using std::cout;
-using std::endl;
 
 int main(int nargs, char** argv) {
   /*
@@ -48,50 +42,28 @@ int main(int nargs, char** argv) {
    */
 
   // running parmaeters
-  int n_events     { (nargs>1) ? atoi(argv[1]) : 1      };
-  string f_outstem { (nargs>2) ? argv[2] : "matchedjet" };
-  int pyth_seed    { (nargs>3) ? atoi(argv[3]) : 1      }; // -1 is default for Pythia
-  int bkg_seed     { (nargs>4) ? atoi(argv[4]) :  -100  }; // defaults to equal pythia seed
-
+  int n_events     { (nargs>1) ? atoi(argv[1]) : 1     };
+  string f_outstem { (nargs>2) ? argv[2] : "pithy"     };
+  int pyth_seed    { (nargs>3) ? atoi(argv[3]) : 1     }; // -1 is default for Pythia
+  int bkg_seed     { (nargs>4) ? atoi(argv[4]) :  -100 }; // defaults to equal pythia seed
   if (bkg_seed == -100) bkg_seed = pyth_seed;
 
-  /* ofstream fout_txt; */
-  /* fout_txt.open((f_outstem+".txt").c_str()); */
+  ofstream fout_txt;
+  fout_txt.open((f_outstem+".txt").c_str());
 
-  bool add_background  = true;
+  TFile* fout = new TFile ((f_outstem+".root").c_str(),"recreate");
+
+  JetTree tree{"T",true};
+  tree.init_branches();
+
+  // print arguments:
+  bool add_background    = false;
   bool print_Pythia8_jets { false };
-  bool print_CA           { false };
+  bool print_CA { true };
   bool print_Pyth_and_Bkg { false };
   bool print_matched      { false };
 
-
-
-  TFile* fout = new TFile ((f_outstem+".root").c_str(),"recreate");
-  // the output TTree
-  TTree* tree = new TTree("T", "Truth-Reco (+gluon) matches");
-  // quarks/gluons -- only filled when matched to jets
-  float qg_pt    {};
-  float qg_eta   {};
-  float qg_phi   {};
-  int   qg_id    {};
-  float rho_bkg_est    {};
-
-  float rho_med {};
-
-  tree->Branch("qg_pt",      &qg_pt);
-  tree->Branch("qg_eta",     &qg_eta);
-  tree->Branch("qg_phi",     &qg_phi);
-  tree->Branch("qg_id",     &qg_id);
-  tree->Branch("rho_bkg_est",      &rho_bkg_est);
-
-  // Truth jets
-  JetBranch jb_pyth { false, false, false, false };
-  jb_pyth.add_to_ttree(tree, "pyth_");
-
-  // Reco jets
-  JetBranch jb_reco { true, true, false, true };
-  jb_reco.add_to_ttree(tree, "reco_");
-
+  
   // Background particles
   BkgGen bkgmaker;
   bkgmaker.seed            = (unsigned int) bkg_seed;
@@ -117,11 +89,6 @@ int main(int nargs, char** argv) {
   clusterer.min_jet_pt = 5.;
   clusterer.init();
 
-  // Jetclusterer with area
-  JetClusterer clusterer_area {};
-  clusterer_area.calc_area = true;
-  clusterer_area.min_jet_pt = 5.;
-  clusterer_area.init();
 
   // JetCA_clusterer
   JetClusterer clusterer_CA {};
@@ -140,6 +107,8 @@ int main(int nargs, char** argv) {
   for (int nev=0;nev<n_events;++nev) {
     // PYTHIA8 jets
     auto part_P = p8maker(); // vector<fastjet::PseudoJet>
+    /* cout << " FIXME(" << nev <<") gen: " << p8maker.weightSum << " and " << p8maker.sigmaGen << endl; */
+    /* cout << " FIXME weight: " << p8maker.pythia.info.weight() << endl; */
     auto jets_P = clusterer(part_P); // reconstructed ("truth") jets
 
     if (print_Pythia8_jets) { 
@@ -160,18 +129,12 @@ int main(int nargs, char** argv) {
     }
 
     // Add in background
-    auto part_M = bkgmaker(); // vector<fastjet::PseudoJet>
-    part_M.insert(part_M.end(), part_P.begin(), part_P.end());
-
-    if (false) {
-        int i =0;
-        cout << endl;
-        for (auto& jet : part_M) {
-            cout << Form("reco: %3i: pt:eta:phi ( %5.2f, %5.2f, %5.2f)", i++, jet.perp(), jet.eta(), jet.phi()) << endl;
-        }
-        cout << endl;
+    vector<fastjet::PseudoJet>& jets_M = jets_P;
+    if (add_background) {
+      auto part_B = bkgmaker(); // vector<fastjet::PseudoJet>
+      part_B.insert(part_B.end(), part_P.begin(), part_P.end());
+      jets_M = clusterer(part_B);
     }
-    auto jets_M = clusterer_area(part_M);
 
     if (print_CA) for (auto& jet : jets_M) {
       auto comps = jet.constituents();
@@ -183,7 +146,7 @@ int main(int nargs, char** argv) {
         criteria.min_pt = 1.0;
         criteria.beta = 0.;
         criteria.R0 = 0.;
-        /* TreeSplitPrinter print1 { jets_CA[0], criteria, "", fout_txt }; */
+        TreeSplitPrinter print1 { jets_CA[0], criteria, "", fout_txt };
         /* TreeSplitPrinter print2 { jets_CA[0], criteria, "", std::cout }; */
       }
       break;
@@ -222,43 +185,18 @@ int main(int nargs, char** argv) {
       }
     }
 
-    i_matcher(jets_M, jets_P);
-    // Match the jets_P with the qg jets (quark gluon) jets
-    /* i_matcher(p8maker.e5and6, jets_P); */
-    bool need_rho = true;
-    for (auto im : i_matcher.i_matched) {
-        if (need_rho) {
-            rho_bkg_est = bkg_est(part_M);
-            need_rho = false;
-        }
-        jb_reco.fill(jets_M[im.first],rho_bkg_est);
-        jb_pyth.fill(jets_P[im.second]);
-        // if match to pythia truth, add the gluon
-        auto qg = p8maker.e5and6;
-        qg_pt  =-100.;
-        qg_eta =-100.;
-        qg_phi =-100.;
-        qg_id  =-1000;
-        bool match_first  = (qg.size()>0 && (qg[0].squared_distance(jets_P[im.second]) <=0.16));
-        bool match_second = (qg.size()>0 && (qg[1].squared_distance(jets_P[im.second]) <=0.16));
-        if (match_first) {
-            if (match_second) {
-            cout << " WARNING: truth jet matches both initializing partons! " << endl
-                 << "    Therefore using only the first parton." << endl;
-            }
-            qg_pt = qg[0].perp();
-            qg_phi = qg[0].phi();
-            qg_eta = qg[0].eta();
-            qg_id  = qg[0].user_index();
-        } else if (match_second) {
-            qg_pt = qg[1].perp();
-            qg_phi = qg[1].phi();
-            qg_eta = qg[1].eta();
-            qg_id  = qg[1].user_index();
-        }
-        tree->Fill();
-    }
 
+    // Match the jets_P with the qg jets (quark gluon) jets
+    i_matcher(p8maker.e5and6, jets_P);
+
+    for (auto im : i_matcher.i_matched) {
+      int qg = im.first;
+      int reco = im.second;
+      tree.add_jetpair(p8maker.e5and6[im.first], jets_P[im.second]);
+    }
+    tree.fill();
+
+    // Match the jets
     if (print_matched) { 
       i_matcher(jets_P, jets_M);
       cout << " --- matched jets --- " << endl;
