@@ -53,8 +53,13 @@ void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
         area = jet.area();
         ptlessarea = jet.perp()-area*rho;
     }
+
+    //calculate the angularity
+    if (fill_angularity) angularity = 0.;
     for (auto& C : jet.constituents()) {
-        if (fill_area && C.is_pure_ghost()) continue;
+        if (fill_area && C.is_pure_ghost()) { std::cout << " GHOSE " << std::endl; continue; }
+        /* if (fill_area) std::cout << " pt : " << C.pt() << " and is ghost " << C.is_pure_ghost() << std::endl; */
+        if (fill_angularity) angularity += C.perp() * C.delta_R(jet);
         nconsts += 1;
         auto index = (int) C.user_index();
         auto Q = index % 2;
@@ -67,6 +72,24 @@ void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
             if (tag_bkgd) const_is_bkgd.push_back(fabs(index)>10);
         }
     }
+    if (fill_angularity) {
+        angularity /= jet.perp();
+    }
+
+}
+
+JetBranch::JetBranch(const vector<OPTIONS> options, float _jet_R) :
+    jet_R { _jet_R }
+{
+    for (auto opt : options) {
+        switch(opt) {
+            case CONSTITUENTS: fill_constituents = true; break;
+            case AREA: fill_area = true; break;
+            case SOFT_DROP: fill_SD = true; break;
+            case TAG_BKGD: tag_bkgd = true; break;
+            case ANGULARITY: fill_angularity = true; break;
+        }
+    }
 }
 
 void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfix) {
@@ -75,6 +98,7 @@ void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfi
     string eta_name = prefix + "eta" + postfix;
     string charge_name = prefix + "charge" + postfix;
     string nconst_name = prefix + "nconsts" + postfix;
+    string ang_name = prefix + "angularity" + postfix;
 
     tree->Branch(pt_name.c_str(), &pt);
     tree->Branch(phi_name.c_str(), &phi);
@@ -104,6 +128,10 @@ void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfi
             string name_bkgd = prefix + "const_bkgd" + postfix;
             tree->Branch(name_bkgd.c_str(), &const_is_bkgd);
         }
+    }
+
+    if (fill_angularity) {
+        tree->Branch(ang_name.c_str(), &angularity);
     }
 
     if (fill_SD) {

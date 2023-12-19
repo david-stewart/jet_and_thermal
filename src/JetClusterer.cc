@@ -8,9 +8,11 @@ using namespace std;
 void JetClusterer::init() {
   is_init = true;
   jet_def = fastjet::JetDefinition(algorithm, jet_R, reco_scheme, fastjet::Best);
-  if (calc_area) area_def = fastjet::AreaDefinition(
-      fastjet::active_area_explicit_ghosts, 
-      fastjet::GhostedAreaSpec(ghost_max_rap, 1, ghost_R));
+  fastjet::GhostedAreaSpec area_spec(ghost_max_rap);
+  area_def = (active_area, area_spec);
+  /* if (calc_area) area_def = fastjet::AreaDefinition( */
+      /* fastjet::active_area_explicit_ghosts, */ 
+      /* fastjet::GhostedAreaSpec(ghost_max_rap, 1, ghost_R)); */
   jet_selector = fastjet::SelectorAbsEtaMax(jet_max_rap) && !fastjet::SelectorIsPureGhost(); 
 }
 

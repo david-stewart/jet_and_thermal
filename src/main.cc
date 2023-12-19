@@ -85,11 +85,11 @@ int main(int nargs, char** argv) {
   tree->Branch("rho_bkg_est",      &rho_bkg_est);
 
   // Truth jets
-  JetBranch jb_pyth { false, false, false, false };
+  JetBranch jb_pyth {};
   jb_pyth.add_to_ttree(tree, "pyth_");
 
   // Reco jets
-  JetBranch jb_reco { true, true, false, true };
+  JetBranch jb_reco {{ CONSTITUENTS, TAG_BKGD, AREA, ANGULARITY }};
   jb_reco.add_to_ttree(tree, "reco_");
 
   // Background particles
@@ -119,7 +119,7 @@ int main(int nargs, char** argv) {
 
   // Jetclusterer with area
   JetClusterer clusterer_area {};
-  clusterer_area.calc_area = true;
+  clusterer_area.calc_area = jb_reco.fill_area;
   clusterer_area.min_jet_pt = 5.;
   clusterer_area.init();
 
@@ -138,6 +138,7 @@ int main(int nargs, char** argv) {
   bkg_est.init();
 
   for (int nev=0;nev<n_events;++nev) {
+      if (nev % 1000 == 0) cout << " Finished " << nev << " events" << endl;
     // PYTHIA8 jets
     auto part_P = p8maker(); // vector<fastjet::PseudoJet>
     auto jets_P = clusterer(part_P); // reconstructed ("truth") jets
