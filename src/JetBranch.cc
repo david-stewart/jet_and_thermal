@@ -36,6 +36,7 @@ void JetBranch::reset() {
         const_charge.clear();
         const_is_bkgd.clear();
     }
+    if (nbranch_const > 0) std::fill(vec_lead_const_pt.begin(), vec_lead_const_pt.end(), 0.);
 }
 
 void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
@@ -54,13 +55,12 @@ void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
         ptlessarea = jet.perp()-area*rho;
     }
 
-    //calculate the angularity
-    if (fill_angularity) angularity = 0.;
-    for (auto& C : jet.constituents()) {
+    
+    if (fill_angularity) angularity = 0.; //calculate the angularity
+    for (auto& C : fastjet::sorted_by_pt(jet.constituents())) {
         if (fill_area && C.is_pure_ghost()) { std::cout << " GHOSE " << std::endl; continue; }
         /* if (fill_area) std::cout << " pt : " << C.pt() << " and is ghost " << C.is_pure_ghost() << std::endl; */
         if (fill_angularity) angularity += C.perp() * C.delta_R(jet);
-        nconsts += 1;
         auto index = (int) C.user_index();
         auto Q = index % 2;
         charge += Q;
@@ -71,6 +71,8 @@ void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
             const_charge.push_back(Q);
             if (tag_bkgd) const_is_bkgd.push_back(fabs(index)>10);
         }
+        if (nconsts < nbranch_const) vec_lead_const_pt[nconsts] = C.perp();
+        nconsts += 1;
     }
     if (fill_angularity) {
         angularity /= jet.perp();
@@ -142,6 +144,14 @@ void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfi
         tree->Branch(zg_name.c_str(), &zg);
         tree->Branch(Rg_name.c_str(), &Rg);
         tree->Branch(mu_name.c_str(), &mu);
+    }
+
+    if (nbranch_const > 0) {
+        vec_lead_const_pt.resize(nbranch_const);
+        for (int i=0; i<nbranch_const; ++i) {
+            std::cout << Form("%sC%i_pt%s",prefix.c_str(), i, postfix.c_str()) << std::endl;
+            tree->Branch(Form("%sC%i_pt%s",prefix.c_str(), i, postfix.c_str()), &(vec_lead_const_pt[i]));
+        }
     }
 }
 

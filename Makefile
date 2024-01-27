@@ -19,11 +19,30 @@ bin/main: \
 	obj/RhoMedianBkgClusterer.o \
 	obj/JetTree.o \
 	obj/JTWalker.o \
-	obj/JetBranch.o
+	obj/JetBranch.o \
+	obj/PtScrambler.o
 	${CC} ${CFLAGS} -o $@ $^ ${LIB_TRI}
+
+bin/probe: \
+	src/main_probe.cc \
+	obj/BkgGen.o \
+	obj/P8Gen.o  \
+	obj/JetClusterer.o \
+	obj/JetIndicesMatcher.o \
+	obj/RhoMedianBkgClusterer.o \
+	obj/JetTree.o \
+	obj/JTWalker.o \
+	obj/JetBranch.o \
+	obj/PtScrambler.o \
+	obj/JetProbe.o
+	${CC} ${CFLAGS} -o $@ $^ ${LIB_TRI}
+
 
 bin/bkup: src/main_bkup.cc
 	${CC} ${CFLAGS} -o $@ $^ ${LIB_TRI}
+
+obj/main_probe.o: src/main_probe.cc 
+	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
 
 obj/main.o: src/main.cc src/BkgGen.h src/P8Gen.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
@@ -50,5 +69,11 @@ obj/JTWalker.o: src/JTWalker.cc src/JTWalker.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
 
 obj/JetBranch.o: src/JetBranch.cc src/JetBranch.h
+	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
+
+obj/PtScrambler.o: src/PtScrambler.cc src/PtScrambler.h
+	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
+
+obj/JetProbe.o: src/JetProbe.cc src/JetProbe.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
 

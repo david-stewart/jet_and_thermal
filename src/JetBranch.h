@@ -26,6 +26,8 @@ JetBranch {
     bool fill_SD { false };
     bool tag_bkgd { false };
     bool fill_angularity { false };
+    int  nbranch_const = 0;
+    vector<float> vec_lead_const_pt {};
 
     JetBranch(const vector<OPTIONS> _={}, float _jet_R=0.4 ); 
     const float jet_R;

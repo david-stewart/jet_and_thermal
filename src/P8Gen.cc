@@ -54,8 +54,9 @@ vector<PseudoJet> P8Gen::operator()() {
   } 
 
   /* auto info = pythia.info; */
-  weightSum = pythia.info.weightSum();
-  sigmaGen  = pythia.info.sigmaGen();
+  /* weightSum = pythia.info.weightSum(); */
+  /* sigmaGen  = pythia.info.sigmaGen(); */
+  /* cout << " sigmaGen: " << (sigmaGen*weightSum) << " and weightSum: " << weightSum << Form(" -> %10.5g",sigmaGen) << endl; */
 
   auto& event = pythia.event ;
 
