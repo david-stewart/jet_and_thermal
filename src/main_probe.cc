@@ -4,6 +4,7 @@
   Do:
   + Generate truth jet (T) (PYTHIA8) particles
     + Cluster into Truth jets
+        scrambler();
   + Generate "bkg" particles (B)
     + Add to truth partcles
     + Cluster into "Measured" jets
@@ -27,17 +28,12 @@
 #include "fastjet/Selector.hh"
 #include "JetBranch.h"
 #include "PtScrambler.h"
+#include "JetProbe.h"
 
-#include <map>
-#include <string>
-
-using std::map;
-using std::string;
 
 // Make truth and reco jets, and put matched jets into the TTree
 // also match to a qg, and see if they matched
 
-using namespace Pythia8;
 using namespace fastjet;
 using namespace std;
 
@@ -49,78 +45,48 @@ int main(int nargs, char** argv) {
    * arguments:
    *   1: number of events
    *   2: ofile name
-   *   3: pythia seed
    *   4: background seed
    */
-
-    // run pthat bins:
-    // 10 14
-    // 14 18
-    // 18 22
-    // 22 24
-    // 24 28
-    // 28 30 
-    // 30 34 
-    // 34 36 
-    // 36 40
 
   // running parmaeters
   int n_events        { (nargs>1) ? atoi(argv[1]) : 1      };
   string f_outstem    { (nargs>2) ? argv[2] : "matchedjet" };
   double pthatmin     { (nargs>3) ? atof(argv[3]) : 10.  };
   double pthatmax     { (nargs>4) ? atof(argv[4]) : 20.  };
-  int scropt          { (nargs>5) ? atoi(argv[5]) : 0  };
-  bool print_scramble { (nargs>6) ? static_cast<bool>(atoi(argv[6])) : false  };
-  int bkg_seed        { (nargs>7) ? atoi(argv[7]) :  -100  }; // defaults to equal pythia seed
-  int pyth_seed       { (nargs>8) ? atoi(argv[8]) :  -100  }; // defaults to equal pythia seed
+  int scropt          { (nargs>3) ? atoi(argv[3]) : 0  };
+  bool print_scramble { (nargs>4) ? static_cast<bool>(atoi(argv[4])) : false  };
+  int bkg_seed        { (nargs>5) ? atoi(argv[5]) :  0  }; // defaults to equal pythia seed
 
-  if (pyth_seed == -100) pyth_seed = 0;
-  if (bkg_seed == -100) bkg_seed = pyth_seed;
 
   /* ofstream fout_t::ScrOpt::Remove };xt; */
   /* fout_txt.open((f_outstem+".txt").c_str()); */
 
-  const float MIN_TRUTH_LEAD_JET = 8.;
+  const float MIN_TRUTH_LEAD_JET = 10.;
   bool add_background  = true;
   bool print_CA           { false };
-  bool print_Pyth_and_Bkg { false };
+  bool print_probe_and_bkg { false };
   bool print_matched      { false };
-  bool print_Pythia8_jets { false };
+
 
   TFile* fout = new TFile ((f_outstem+".root").c_str(),"recreate");
   // the output TTree
   TTree* tree = new TTree("T", "Truth-Reco (+gluon) matches");
-  
   // quarks/gluons -- only filled when matched to jets
-  float qg_pt    {};
-  float qg_eta   {};
-  float qg_phi   {};
-  int   qg_id    {};
   float rho_bkg_est    {};
-
   float rho_med {};
-  float Xsec;
-  float XsecSigma;
 
-  tree->Branch("qg_pt",      &qg_pt);
-  tree->Branch("qg_eta",     &qg_eta);
-  tree->Branch("qg_phi",     &qg_phi);
-  tree->Branch("qg_id",     &qg_id);
+  // JetProbe
+  TRandom3 _rand { static_cast<unsigned int>(bkg_seed) };
+  JetProbe probe {_rand, 0.7};
 
-  tree->Branch("rho_bkg_est",      &rho_bkg_est);
-  tree->Branch("Xsec",        &Xsec);
-  tree->Branch("XsecSigma",   &XsecSigma);
-
-  // Truth jets
-  JetBranch jb_pyth {};
-  jb_pyth.add_to_ttree(tree, "pyth_");
+  JetBranch jb_probe {};
+  jb_probe.add_to_ttree(tree, "probe_");
 
   // Reco jets
   JetBranch jb_reco {{ TAG_BKGD, AREA, ANGULARITY }};
   jb_reco.nbranch_const = 10;
   jb_reco.add_to_ttree(tree, "reco_");
 
-  TRandom3 _rand { static_cast<unsigned int>(bkg_seed) };
   PtScrambler scrambler { jb_reco.vec_lead_const_pt, _rand,
       static_cast<PtScrambler::ScrOpt>(scropt), print_scramble };
 
@@ -132,17 +98,6 @@ int main(int nargs, char** argv) {
   bkgmaker.include_neutral = true;
   bkgmaker.minPtCut        = 0.2;
   bkgmaker.init();
-
-  // Pythia 8 particles
-  P8Gen p8maker {};
-  p8maker.seed            = pyth_seed;
-  p8maker.name_type       = "pp";
-  p8maker.sNN             = 200.;
-  p8maker.pTHatMin        = pthatmin;
-  p8maker.pTHatMax        = pthatmax;
-  p8maker.collect_neutral = true;
-  p8maker.collect_charged = true;
-  p8maker.init();
 
   // JetClusterer
   JetClusterer clusterer {};
@@ -172,58 +127,13 @@ int main(int nargs, char** argv) {
 
   for (int nev=0;nev<n_events;++nev) {
       if (nev % 1000 == 0) cout << " Finished " << nev << " events" << endl;
-    // PYTHIA8 jets
-    vector<PseudoJet> part_P;
-    vector<PseudoJet> jets_P;
-
-    int n_attempt = 0;
-    while(true)  {
-        auto _part_P = p8maker(); // vector<fastjet::PseudoJet>
-        auto _jets_P = clusterer(_part_P); // reconstructed ("truth") jets
-        if ((_jets_P.size()>0) && (_jets_P[0].perp() > MIN_TRUTH_LEAD_JET)) {
-            part_P = std::move(_part_P);
-            jets_P = std::move(_jets_P);
-            break;
-        } 
-        /* else { */
-            /* if (_jets_P.size() == 0) std::cout << " No leading truth jet" << std::endl; */
-            /* else std::cout << " Small truth jet: " << _jets_P[0].perp() << std::endl; */
-        /* } */
-        if (n_attempt++ > 100) {
-            std::cout << " failed finding lead jet in 10000 tries. Terminating programm" << std::endl;
-            return 0;
-        }
-    }
-
-    if (print_Pythia8_jets) { 
-      cout << " --- Jets from PYTHIA8 --- size: " << jets_P.size() << endl;
-      int i {0};
-      for (auto& jet : jets_P) {
-        auto comps = jet.constituents();
-        cout << Form("jet[%2i] eta:phi:pt(%5.2f,%5.2f,%5.2f) nconst(%3i)",
-          i++, jet.eta(),jet.phi(),jet.perp(), (int) comps.size()) << endl;
-        int ic {0};
-        for (auto& C : comps) {
-          cout << Form("  const[%2i] eta:phi:pt(%5.2f,%5.2f,%5.2f)",
-            ic++, C.eta(),C.phi(),C.perp()) << endl;
-
-          // print out the path
-        }
-      }
-    }
+    // probe jet
+    vector<PseudoJet> part_P = probe();
+    vector<PseudoJet> jets_P = clusterer(part_P);
 
     // Add in background
     auto part_M = bkgmaker(); // vector<fastjet::PseudoJet>
     part_M.insert(part_M.end(), part_P.begin(), part_P.end());
-
-    if (false) {
-        int i =0;
-        cout << endl;
-        for (auto& jet : part_M) {
-            cout << Form("reco: %3i: pt:eta:phi ( %5.2f, %5.2f, %5.2f)", i++, jet.perp(), jet.eta(), jet.phi()) << endl;
-        }
-        cout << endl;
-    }
     auto jets_M = clusterer_area(part_M);
 
     if (print_CA) for (auto& jet : jets_M) {
@@ -242,8 +152,9 @@ int main(int nargs, char** argv) {
       break;
     }
 
-    if (print_Pyth_and_Bkg) { 
-      cout << " --- Pythia8 Jets ";
+
+    if (print_probe_and_bkg) { 
+      cout << " --- JetProbe ";
       if (add_background) cout << " + background";
       cout << "--- " << endl;
 
@@ -275,7 +186,7 @@ int main(int nargs, char** argv) {
       }
     }
 
-    i_matcher(jets_P, jets_M);
+    i_matcher(jets_M, jets_P);
     // Match the jets_P with the qg jets (quark gluon) jets
     /* i_matcher(p8maker.e5and6, jets_P); */
     bool is_first = true;
@@ -283,39 +194,11 @@ int main(int nargs, char** argv) {
         if (is_first) {
             rho_bkg_est = bkg_est(part_M);
         }
-
-        jb_reco.fill(jets_M[im.second], rho_bkg_est, is_first);
-        jb_pyth.fill(jets_P[im.first],rho_bkg_est, is_first);
-
-        if (is_first) is_first = false;
-        // if match to pythia truth, add the gluon
-        auto qg = p8maker.e5and6;
-        qg_pt  =-100.;
-        qg_eta =-100.;
-        qg_phi =-100.;
-        qg_id  =-1000;
-        bool match_first  = (qg.size()>0 && (qg[0].squared_distance(jets_P[im.second]) <=0.16));
-        bool match_second = (qg.size()>0 && (qg[1].squared_distance(jets_P[im.second]) <=0.16));
-        if (match_first) {
-            if (match_second) {
-            cout << " WARNING: truth jet matches both initializing partons! " << endl
-                 << "    Therefore using only the first parton." << endl;
-            }
-            qg_pt = qg[0].perp();
-            qg_phi = qg[0].phi();
-            qg_eta = qg[0].eta();
-            qg_id  = qg[0].user_index();
-        } else if (match_second) {
-            qg_pt = qg[1].perp();
-            qg_phi = qg[1].phi();
-            qg_eta = qg[1].eta();
-            qg_id  = qg[1].user_index();
-        }
+        jb_reco.fill(jets_M[im.first],rho_bkg_est, is_first);
+        jb_probe.fill(jets_P[im.second],rho_bkg_est, is_first);
         scrambler();
-
-        Xsec = p8maker.pythia.info.sigmaGen();
-        XsecSigma = p8maker.pythia.info.sigmaErr();
         tree->Fill();
+        if (is_first) is_first = false;
     }
 
     if (print_matched) { 
@@ -343,16 +226,6 @@ int main(int nargs, char** argv) {
       }
     }
   }
-
-  // see https://pythia.org/latest-manual/CrossSectionsAndWeights.html
-  map<string,double> param;
-  param["n_events"] = n_events;
-  param["pthatmin"] = pthatmin;
-  param["pthatmax"] = pthatmax;
-
-  fout ->cd();
-  fout->WriteObject(&param,"parameters");
-
 
   fout->Write();
   fout->Save();

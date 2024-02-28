@@ -39,15 +39,17 @@ void JetBranch::reset() {
     if (nbranch_const > 0) std::fill(vec_lead_const_pt.begin(), vec_lead_const_pt.end(), 0.);
 }
 
-void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
+void JetBranch::fill(fastjet::PseudoJet& jet, float& rho, bool& is_first_jet, float xsec) {
     reset();
     pt = jet.perp();
     phi = jet.phi();
     eta = jet.eta();
+    isleadjet = (int) is_first_jet;
     if (!jet.has_constituents()) {
         std::cout << " Error in src/JetBranch.cc: jet without constituents!" << std::endl;
         exit(1);
     }
+
     nconsts = 0;
     charge = 0;
     if (fill_area) {
@@ -55,11 +57,12 @@ void JetBranch::fill(fastjet::PseudoJet& jet, float rho) {
         ptlessarea = jet.perp()-area*rho;
     }
 
-    
     if (fill_angularity) angularity = 0.; //calculate the angularity
+    jet_w->Fill(pt, xsec);
     for (auto& C : fastjet::sorted_by_pt(jet.constituents())) {
-        if (fill_area && C.is_pure_ghost()) { std::cout << " GHOSE " << std::endl; continue; }
+        if (fill_area && C.is_pure_ghost()) { std::cout << " GHOST " << std::endl; continue; }
         /* if (fill_area) std::cout << " pt : " << C.pt() << " and is ghost " << C.is_pure_ghost() << std::endl; */
+        jet_const->Fill(C.perp(),pt,xsec);
         if (fill_angularity) angularity += C.perp() * C.delta_R(jet);
         auto index = (int) C.user_index();
         auto Q = index % 2;
@@ -101,10 +104,13 @@ void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfi
     string charge_name = prefix + "charge" + postfix;
     string nconst_name = prefix + "nconsts" + postfix;
     string ang_name = prefix + "angularity" + postfix;
+    string is_lead_jet_name = prefix + "isleadjet" + postfix;
 
     tree->Branch(pt_name.c_str(), &pt);
     tree->Branch(phi_name.c_str(), &phi);
     tree->Branch(eta_name.c_str(), &eta);
+    tree->Branch(is_lead_jet_name.c_str(), &isleadjet);
+
     if (fill_area) {
         string area_name = prefix + "area" + postfix;
         tree->Branch(area_name.c_str(), &area);
@@ -153,5 +159,12 @@ void JetBranch::add_to_ttree(TTree* tree, std::string prefix, std::string postfi
             tree->Branch(Form("%sC%i_pt%s",prefix.c_str(), i, postfix.c_str()), &(vec_lead_const_pt[i]));
         }
     }
+
+    // add in the splitting function values
+    jet_w = new TH1D(Form("%sjetw%s",prefix.c_str(),postfix.c_str()),"Num. Jets;jet pT;sum Xsec",
+            80., 0., 80);
+    jet_const = new TH2D(Form("%sjet_const%s",prefix.c_str(),postfix.c_str()),"jet constituents;constituent pT;jet pt", 200., 0., 20., 80., 0., 80);
+
+    
 }
 

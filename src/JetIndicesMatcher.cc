@@ -13,6 +13,27 @@ array<unsigned int,3> JetIndicesMatcher::operator()
   , vector<PseudoJet>& jets_R ) 
 {
 
+    for (unsigned int i=0; i<jets_T.size(); ++i) {
+        if (i>0) {
+            float diff = (jets_T[i].perp() - jets_T[i-1].perp());
+        if (diff>0) {
+            cout << "TRUE diff: " << diff << endl;
+            cout << "-i (" << (i-1) <<")" << jets_T[i-1].perp() << " -> " << 
+            " (" << i <<")" << jets_T[i].perp() << endl;
+        }
+        }
+    }
+    for (unsigned int i=0; i<jets_R.size(); ++i) {
+        if (i>0) {
+            float diff = (jets_R[i].perp() - jets_R[i-1].perp());
+        if (diff>0) {
+            cout << "MEAS diff: " << diff << endl;
+            cout << "-i (" << (i-1) <<")" << jets_R[i-1].perp() << " -> " << 
+            " (" << i <<")" << jets_R[i].perp() << endl;
+        }
+        }
+    }
+
     i_fake.clear();
     i_miss.clear();
     i_matched.clear();

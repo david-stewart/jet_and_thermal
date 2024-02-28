@@ -11,6 +11,8 @@ Input:
    - note: we are not confident that JetScape can run in parallel in the same
      directory, because it might read and write local files. Therefore, only
      run it one event at a time.
+     - n.b.: it is convenient to use `tmux` here
+   - n.b.: 
  - Process the output jetscape `*.dat.gz` file:
    - Use the code in `/home/davidstewart/SplittingFull`:
    - executable is in /home/davidstewart/SplittingFull/src/maketupJsHadrons.cc`

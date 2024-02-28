@@ -7,7 +7,9 @@
 #include "fastjet/PseudoJet.hh"
 #include "TRandom3.h"
 #include "TF1.h"
+#include "TFile.h"
 #include <vector>
+#include "TTreeReader.h"
 
 struct P8Gen {
   double sNN             { 200     };
@@ -37,5 +39,18 @@ struct P8Gen {
   /* fastjet::PseudoJet e5 {}; */
   /* fastjet::PseudoJet e6 {}; */
 };
+
+class P8TupReader {
+    public:
+    P8TupReader(const std::string& fname);
+    std::vector<fastjet::PseudoJet> operator()();
+    bool next();
+
+    TFile *fin;
+    TTreeReader event_reader;
+    TTreeReader part_reader;
+    TTreeReaderValue<Float_t> px, py, pz, E, Xsec, XsecSigma, nPart;
+}; 
+
 
 #endif

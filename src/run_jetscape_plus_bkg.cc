@@ -9,6 +9,8 @@
     + Cluster into "Measured" jets
   + Match truth and embedded jets
 
+  // same as src/main, but reading P8particles from an input
+
 */
 
 #include "BkgGen.h"
@@ -65,10 +67,11 @@ int main(int nargs, char** argv) {
     // 36 40
 
   // running parmaeters
-  int n_events        { (nargs>1) ? atoi(argv[1]) : 1      };
-  string f_outstem    { (nargs>2) ? argv[2] : "matchedjet" };
-  double pthatmin     { (nargs>3) ? atof(argv[3]) : 10.  };
-  double pthatmax     { (nargs>4) ? atof(argv[4]) : 20.  };
+  /* int n_events        { (nargs>1) ? atoi(argv[1]) : 1      }; */
+  string f_in         { (nargs>1) ? argv[1] : "test_maketupJsHadrons.root" };
+  string f_outstem    { (nargs>2) ? argv[2] : "test_p8read" };
+  /* double pthatmin     { (nargs>3) ? atof(argv[3]) : 0.  }; */
+  /* double pthatmax     { (nargs>4) ? atof(argv[4]) : 0.  }; */
   int scropt          { (nargs>5) ? atoi(argv[5]) : 0  };
   bool print_scramble { (nargs>6) ? static_cast<bool>(atoi(argv[6])) : false  };
   int bkg_seed        { (nargs>7) ? atoi(argv[7]) :  -100  }; // defaults to equal pythia seed
@@ -87,7 +90,7 @@ int main(int nargs, char** argv) {
   bool print_matched      { false };
   bool print_Pythia8_jets { false };
 
-  TFile* fout = new TFile ((f_outstem+".root").c_str(),"recreate");
+  TFile* fout = new TFile ((f_outstem).c_str(),"recreate");
   // the output TTree
   TTree* tree = new TTree("T", "Truth-Reco (+gluon) matches");
   
@@ -97,19 +100,19 @@ int main(int nargs, char** argv) {
   float qg_phi   {};
   int   qg_id    {};
   float rho_bkg_est    {};
+  float Xsec {};
+  float XsecSigma {};
 
   float rho_med {};
-  float Xsec;
-  float XsecSigma;
 
-  tree->Branch("qg_pt",      &qg_pt);
-  tree->Branch("qg_eta",     &qg_eta);
-  tree->Branch("qg_phi",     &qg_phi);
-  tree->Branch("qg_id",     &qg_id);
-
-  tree->Branch("rho_bkg_est",      &rho_bkg_est);
+  /* tree->Branch("qg_pt",      &qg_pt); */
+  /* tree->Branch("qg_eta",     &qg_eta); */
+  /* tree->Branch("qg_phi",     &qg_phi); */
+  /* tree->Branch("qg_id",     &qg_id); */
+    
   tree->Branch("Xsec",        &Xsec);
   tree->Branch("XsecSigma",   &XsecSigma);
+  tree->Branch("rho_bkg_est", &rho_bkg_est);
 
   // Truth jets
   JetBranch jb_pyth {};
@@ -134,21 +137,24 @@ int main(int nargs, char** argv) {
   bkgmaker.init();
 
   // Pythia 8 particles
-  P8Gen p8maker {};
-  p8maker.seed            = pyth_seed;
-  p8maker.name_type       = "pp";
-  p8maker.sNN             = 200.;
-  p8maker.pTHatMin        = pthatmin;
-  p8maker.pTHatMax        = pthatmax;
-  p8maker.collect_neutral = true;
-  p8maker.collect_charged = true;
-  p8maker.init();
+  /* P8Gen p8maker {}; */
+  /* p8maker.seed            = pyth_seed; */
+  /* p8maker.name_type       = "pp"; */
+  /* p8maker.sNN             = 200.; */
+  /* p8maker.pTHatMin        = pthatmin; */
+  /* p8maker.pTHatMax        = pthatmax; */
+  /* p8maker.collect_neutral = true; */
+  /* p8maker.collect_charged = true; */
+  /* p8maker.init(); */
+
+  P8TupReader p8reader(f_in);
 
   // JetClusterer
   JetClusterer clusterer {};
   clusterer.calc_area = false;
   clusterer.min_jet_pt = 5.;
   clusterer.init();
+
 
   // Jetclusterer with area
   JetClusterer clusterer_area {};
@@ -170,15 +176,20 @@ int main(int nargs, char** argv) {
   RhoMedianBkgClusterer bkg_est{};
   bkg_est.init();
 
-  for (int nev=0;nev<n_events;++nev) {
+  bool last_event = false;
+  int nev = 0;
+  while (last_event == false) {
       if (nev % 1000 == 0) cout << " Finished " << nev << " events" << endl;
+      nev++;
     // PYTHIA8 jets
     vector<PseudoJet> part_P;
     vector<PseudoJet> jets_P;
 
     int n_attempt = 0;
     while(true)  {
-        auto _part_P = p8maker(); // vector<fastjet::PseudoJet>
+        last_event = !(p8reader.next());
+        if (last_event) break;
+        auto _part_P = p8reader(); // vector<fastjet::PseudoJet>
         auto _jets_P = clusterer(_part_P); // reconstructed ("truth") jets
         if ((_jets_P.size()>0) && (_jets_P[0].perp() > MIN_TRUTH_LEAD_JET)) {
             part_P = std::move(_part_P);
@@ -194,6 +205,7 @@ int main(int nargs, char** argv) {
             return 0;
         }
     }
+    if (last_event) break;
 
     if (print_Pythia8_jets) { 
       cout << " --- Jets from PYTHIA8 --- size: " << jets_P.size() << endl;
@@ -283,76 +295,76 @@ int main(int nargs, char** argv) {
         if (is_first) {
             rho_bkg_est = bkg_est(part_M);
         }
-
-        jb_reco.fill(jets_M[im.second], rho_bkg_est, is_first);
-        jb_pyth.fill(jets_P[im.first],rho_bkg_est, is_first);
-
+        jb_pyth.fill(jets_P[im.first], rho_bkg_est, is_first);
+        jb_reco.fill(jets_M[im.second],rho_bkg_est, is_first);
         if (is_first) is_first = false;
         // if match to pythia truth, add the gluon
-        auto qg = p8maker.e5and6;
-        qg_pt  =-100.;
-        qg_eta =-100.;
-        qg_phi =-100.;
-        qg_id  =-1000;
-        bool match_first  = (qg.size()>0 && (qg[0].squared_distance(jets_P[im.second]) <=0.16));
-        bool match_second = (qg.size()>0 && (qg[1].squared_distance(jets_P[im.second]) <=0.16));
-        if (match_first) {
-            if (match_second) {
-            cout << " WARNING: truth jet matches both initializing partons! " << endl
-                 << "    Therefore using only the first parton." << endl;
-            }
-            qg_pt = qg[0].perp();
-            qg_phi = qg[0].phi();
-            qg_eta = qg[0].eta();
-            qg_id  = qg[0].user_index();
-        } else if (match_second) {
-            qg_pt = qg[1].perp();
-            qg_phi = qg[1].phi();
-            qg_eta = qg[1].eta();
-            qg_id  = qg[1].user_index();
-        }
-        scrambler();
+        /* auto qg = p8maker.e5and6; */
+        /* qg_pt  =-100.; */
+        /* qg_eta =-100.; */
+        /* qg_phi =-100.; */
+        /* qg_id  =-1000; */
+        /* bool match_first  = (qg.size()>0 && (qg[0].squared_distance(jets_P[im.second]) <=0.16)); */
+        /* bool match_second = (qg.size()>0 && (qg[1].squared_distance(jets_P[im.second]) <=0.16)); */
+        /* if (match_first) { */
+        /*     if (match_second) { */
+        /*     cout << " WARNING: truth jet matches both initializing partons! " << endl */
+        /*          << "    Therefore using only the first parton." << endl; */
+        /*     } */
+        /*     qg_pt = qg[0].perp(); */
+        /*     qg_phi = qg[0].phi(); */
+        /*     qg_eta = qg[0].eta(); */
+        /*     qg_id  = qg[0].user_index(); */
+        /* } else if (match_second) { */
+        /*     qg_pt = qg[1].perp(); */
+        /*     qg_phi = qg[1].phi(); */
+        /*     qg_eta = qg[1].eta(); */
+        /*     qg_id  = qg[1].user_index(); */
+        /* } */
+        Xsec = *p8reader.Xsec;
+        XsecSigma = *p8reader.XsecSigma;
 
-        Xsec = p8maker.pythia.info.sigmaGen();
-        XsecSigma = p8maker.pythia.info.sigmaErr();
+        scrambler();
         tree->Fill();
     }
 
-    if (print_matched) { 
-      i_matcher(jets_P, jets_M);
-      cout << " --- matched jets --- " << endl;
-      for (auto im : i_matcher.i_matched) {
-        int P = im.first;
-        int M = im.second;
-        auto& _P = jets_P[P];
-        auto& _B = jets_M[M];
+    /* if (print_matched) { */ 
+    /*   i_matcher(jets_P, jets_M); */
+    /*   cout << " --- matched jets --- " << endl; */
+    /*   for (auto im : i_matcher.i_matched) { */
+    /*     int P = im.first; */
+    /*     int M = im.second; */
+    /*     auto& _P = jets_P[P]; */
+    /*     auto& _B = jets_M[M]; */
 
-        float delta_phi = _B.phi()-_P.phi();
-        while (delta_phi > M_PI)  delta_phi -= 2*M_PI;
-        while (delta_phi < -M_PI) delta_phi += 2*M_PI;
+    /*     float delta_phi = _B.phi()-_P.phi(); */
+    /*     while (delta_phi > M_PI)  delta_phi -= 2*M_PI; */
+    /*     while (delta_phi < -M_PI) delta_phi += 2*M_PI; */
 
-        cout << Form("PJet[%2i] (%5.2f,%5.2f,pT:%5.2f) MJet[%2i] (%5.2f,%5.2f,pT:%5.2f) Delta(%6.3f,%6.3f,pT:%6.2f,R:%6.3f(w/rap) or %6.3f(w/eta))",
-          P,  _P.pseudorapidity(), _P.phi(), _P.perp(),
-          M, _B.pseudorapidity(), _B.phi(), _B.perp(),
-          _B.pseudorapidity() - _P.pseudorapidity(),
-          delta_phi,
-          _B.perp()-_P.perp(),
-          _P.delta_R(_B), 
-          pow(pow(_P.pseudorapidity()-_B.pseudorapidity(),2.)+pow(delta_phi,2.),0.5)
-          ) << endl;
-      }
-    }
+    /*     cout << Form("PJet[%2i] (%5.2f,%5.2f,pT:%5.2f) MJet[%2i] (%5.2f,%5.2f,pT:%5.2f) Delta(%6.3f,%6.3f,pT:%6.2f,R:%6.3f(w/rap) or %6.3f(w/eta))", */
+    /*       P,  _P.pseudorapidity(), _P.phi(), _P.perp(), */
+    /*       M, _B.pseudorapidity(), _B.phi(), _B.perp(), */
+    /*       _B.pseudorapidity() - _P.pseudorapidity(), */
+    /*       delta_phi, */
+    /*       _B.perp()-_P.perp(), */
+    /*       _P.delta_R(_B), */ 
+    /*       pow(pow(_P.pseudorapidity()-_B.pseudorapidity(),2.)+pow(delta_phi,2.),0.5) */
+    /*       ) << endl; */
+    /*   } */
+    /* } */
   }
 
   // see https://pythia.org/latest-manual/CrossSectionsAndWeights.html
   map<string,double> param;
-  param["n_events"] = n_events;
-  param["pthatmin"] = pthatmin;
-  param["pthatmax"] = pthatmax;
+  /* param["n_events"] = n_events; */
+  /* param["sigmaGen"] = p8maker.pythia.info.sigmaGen(); */
+  /* param["p8_n_events"] =  p8maker.pythia.info.weightSum(); */
+  /* param["Xsec"] = p8maker.pythia.info.sigmaGen() / p8maker.pythia.info.weightSum(); */
+  /* param["pthatmin"] = pthatmin; */
+  /* param["pthatmax"] = pthatmax; */
 
   fout ->cd();
   fout->WriteObject(&param,"parameters");
-
 
   fout->Write();
   fout->Save();

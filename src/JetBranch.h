@@ -9,6 +9,8 @@
 
 #include <string>
 #include <vector>
+#include "TH1D.h"
+#include "TH2D.h"
 
 using std::string;
 using std::vector;
@@ -40,7 +42,7 @@ JetBranch {
     /* {}; */
 
     void reset();
-    void fill(fastjet::PseudoJet& jet, float rho=0);
+    void fill(fastjet::PseudoJet& jet, float& rho, bool& is_firstjet, float xsec=1.0);
     void add_to_ttree(TTree* tree, std::string prefix, std::string postfix="");
 
     //branches
@@ -52,6 +54,7 @@ JetBranch {
     float ptlessarea;
     int   charge;
     int   nconsts;
+    bool  isleadjet;
 
     // constituents
     vector<float> const_pt  {};
@@ -64,6 +67,10 @@ JetBranch {
     float zg;
     float Rg;
     float mu;
+
+    // for splitting function
+    TH1D* jet_w;
+    TH2D* jet_const;
 };
 
 #endif

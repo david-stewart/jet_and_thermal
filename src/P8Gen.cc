@@ -97,6 +97,38 @@ vector<PseudoJet> P8Gen::operator()() {
     p_vec.push_back(p);
   }
   return p_vec;
-  
 };
+
+P8TupReader::P8TupReader(const std::string& fname) 
+    : fin { new TFile(fname.c_str(), "read") }
+    , event_reader { "events", fin }
+    , part_reader  { "particles", fin }
+    , px    { part_reader, "px" }
+    , py    { part_reader, "py" }
+    , pz    { part_reader, "pz" }
+    , E     { part_reader, "E" }
+    , nPart { event_reader, "nhadrons" }
+    , Xsec  { event_reader, "Xsec" }
+    , XsecSigma { event_reader, "XsecSigma" }
+{ };
+
+bool P8TupReader::next() {
+    return event_reader.Next();
+}
+
+std::vector<fastjet::PseudoJet> P8TupReader::operator()() {
+    int npart = static_cast<int>(*nPart);
+    std::vector <fastjet::PseudoJet> p_vec; // charged vec
+    for (int i=0;i<npart;++i) {
+        bool has_next = part_reader.Next();
+        if (!has_next) {
+            std::cout << "Fatal error -- trying to read too many input hadrons!" << std::endl;
+            break;
+        }
+        fastjet::PseudoJet p { *px, *py, *pz, *E };
+        p_vec.push_back(p);
+        p.set_user_index(static_cast<int>(-100));
+    }
+    return p_vec;
+}
 
