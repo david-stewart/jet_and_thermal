@@ -25,6 +25,11 @@ obj/IP_match_trees.o: src/IP_match_trees.cc src/BkgGen.h \
 	src/IP_geom_matcher.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
 
+obj/JetscapeHadronReader.o: src/JetscapeHadronReader.cc \
+	src/JetscapeHadronReader.h \
+	src/JetClusterer.h 
+	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
+
 obj/BkgGen.o: src/BkgGen.cc src/BkgGen.h
 	${CC} ${CFLAGS} ${LIB_TRI} -c $< -o $@
 

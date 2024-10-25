@@ -5,13 +5,26 @@
 #include <TFile.h>
 #include "fastjet/PseudoJet.hh"
 #include <fastjet/JetDefinition.hh>
-#include "JTWalker.h"
+/* #include "JTWalker.h" */
 
 #include <string>
 #include <vector>
 
 using std::string;
 using std::vector;
+
+struct SD_criteria {
+  float zg      ;
+  float beta    ;
+  float R0      ;
+  float min_pt  ;
+  SD_criteria ( float _zg=0.3, float _beta=0., float _R0=0.4, float _min_pt=1. ) :
+    zg{_zg}
+  , beta{_beta}
+  , R0 {_R0}
+  , min_pt { _min_pt}
+  {}
+};
 
 struct
 JetTree {

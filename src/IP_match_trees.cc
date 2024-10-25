@@ -40,59 +40,98 @@ using std::string;
 using namespace fastjet;
 using namespace std;
 
+void add_dot_root(string& name) {
+  if ( (name.size() < 5) ||
+     (name.compare(name.length()-5, 5, ".root") != 0)
+  ) {
+    name+=".root";
+  } 
+  return;
+}
+
 int main(int nargs, char **argv)
 {
   /*
    * arguments:
-   *   1: number of events
-   *   2: ofile name
-   *   3: pythia seed
-   *   4: background seed
+   *   1: input file
+   *   2: max_events (defualts to -1)
+   *   3: output file
+   *   4: input_bkg file
+   *   5: bool -- fill the vector of cpt
+   *   6: N_bkgsamples per jet
+   *   7: bkg_seed (defaults to -100 and is set to 0 -- therefore random)
    */
 
-  // run pthat bins:
-  // 10 14
-  // 14 18
-  // 18 22
-  // 22 24
-  // 24 28
-  // 28 30
-  // 30 34
-  // 34 36
-  // 36 40
+    /* In order to run background events, do something like:
+    ./bin/IP_match_trees INPUT_PROBE 10 probe_file_out.root dat/hydro_31K.root false 1 0
+    */
 
   // running parmaeters
-  /* int n_events        { (nargs>1) ? atoi(argv[1]) : 1      }; */
-  string f_in{(nargs > 1) ? argv[1] : "test_in.root"};
-  string f_outstem{(nargs > 2) ? argv[2] : "test_out.root"};
-  bool   fill_vec_cpt{(nargs > 3) ? static_cast<bool>(atoi(argv[3])) : false};
-  const int N_BKGSAMPLES{(nargs > 4) ? atoi(argv[4]) : 1};
-  int max_nevents{(nargs > 5) ? atoi(argv[5]) : -1};
+  string       f_in         {(nargs > 1) ? argv[1] : "test_in.root"};
+  // use "INPUT_PROBE" to get this code to run 30 GeV probes into the background
+  const int    MAX_NEVENTS  {(nargs > 2) ? atoi(argv[2]) : -1};
+  string       f_out        {(nargs > 3) ? argv[3] : "test_out.root"};
+  string       bulk_file    {(nargs > 4) ? argv[4] : "none"}; // is_hydro
+  bool         fill_vec_cpt {(nargs > 5) ? static_cast<bool>(atoi(argv[5])) : false};
+  const int    N_BKGSAMPLES {(nargs > 6) ? atoi(argv[6]) : 1};
+  int          bkg_seed     {(nargs > 7) ? atoi(argv[6]) : -100};  // defaults to equal pythia seed
 
-  cout << " Input: " << f_in << "->" << f_outstem <<" vec("<<fill_vec_cpt<<") nemb="<<N_BKGSAMPLES<<" ev="<<max_nevents<<endl;
+  std::cout << " Input: f_in(" << f_in <<")" << std::endl
+            <<" MAX_NEVENTS("<<MAX_NEVENTS <<")" << std::endl
+            <<" f_out("<<f_out <<")" << std::endl
+            <<" bulk_file("<<bulk_file <<")" << std::endl
+            <<" fill_vec_cpt("<<fill_vec_cpt <<")" << std::endl
+            <<" N_BKGSAMPLES("<<N_BKGSAMPLES <<")" << std::endl
+            <<" bkg_seed("<<bkg_seed << ")" << std::endl; 
 
-  /* double pthatmin     { (nargs>3) ? atof(argv[3]) : 0.  }; */
-  /* double pthatmax     { (nargs>4) ? atof(argv[4]) : 0.  }; */
-  // int scropt{(nargs > 5) ? atoi(argv[5]) : 0};
-  // bool print_scramble{(nargs > 6) ? static_cast<bool>(atoi(argv[6])) : false};
-  int bkg_seed{(nargs > 6) ? atoi(argv[6]) : -100};  // defaults to equal pythia seed
-  // int pyth_seed{(nargs > 8) ? atoi(argv[8]) : -100}; // defaults to equal pythia seed
+  bool use_probe = (f_in == "INPUT_PROBE");
+  if (use_probe) { f_in = "test_in"; };
 
-  // if (pyth_seed == -100)
-    // pyth_seed = 0;
+  add_dot_root(f_in);
+  add_dot_root(f_out);
+
+  TFile* bulk_tfile = nullptr;
+  TTree* bulk_ttree = nullptr;
+  bool   separate_bulk = false;
+  if (bulk_file != "is_hydro") 
+  {
+    add_dot_root(bulk_file);
+    std::cout << " Reading in separate hydro background file: " << bulk_file << std::endl;
+    bulk_tfile = new TFile(bulk_file.c_str(), "read");
+    bulk_ttree = (TTree*)bulk_tfile->Get("T");
+    separate_bulk = true;
+    assert(bulk_ttree != nullptr);
+  } 
+
+  cout << " Input: " << f_in << "->" << f_out <<" vec("<<fill_vec_cpt<<") nemb="<<N_BKGSAMPLES<<" ev="<<MAX_NEVENTS<<endl;
+
   if (bkg_seed == -100) bkg_seed = 0.;
 
-  const float MIN_TRUTH_LEAD_JET = 0.;
-  bool add_background = true;
-  bool print_CA{false};
-  bool print_Pyth_and_Bkg{false};
-  bool print_matched{false};
-  bool print_Pythia8_jets{false};
-
-  TFile *fout = new TFile((f_outstem).c_str(), "recreate");
+  TFile *fout = new TFile((f_out).c_str(), "recreate");
   TTree *tree = new TTree("T", "Trees for the initiating parton");
 
-  IP_geom_matcher js_reader(f_in);
+
+  TH1D* dR_rap = new TH1D("dR_rap","dR using rapidity;#sqrt{#Delta#y+#Delta#phi};Truth to Reco",100, 0., 0.4);
+  TH1D* dR_eta = new TH1D("dR_eta","dR using pseudo-rapidity;#sqrt{#Delta#eta+#Delta#phi};Truth to Reco",100, 0., 0.4);
+
+  TH1D* IP_rap = new TH1D("IP_rap","IP_rap;#mathit{y};",100, -1.5, 1.5);
+  TH1D* IP_eta = new TH1D("IP_eta","IP_eta;#mathit{y};",100, -1.5, 1.5);
+  TH1D* IP_deltaetarap = new TH1D("IP_deltaetarap","IP eta - rap;#eta - #mathit{y};",100, -0.15, 0.15);
+
+  TH1D* truth_rap = new TH1D("truth_rap",";truth jet rapidity;",100, -1.5, 1.5);
+  TH1D* truth_eta = new TH1D("truth_eta",";truth jet pseudorapidity;",100, -1.5, 1.5);
+  TH1D* truth_deltaetarap = new TH1D("truth_deltaetarap","truth eta - rap;#eta - #mathit{y};",100, -0.15, 0.15);
+
+  TH1D* reco_rap = new TH1D("reco_rap",";reco jet rapidity;",100, -1.5, 1.5);
+  TH1D* reco_eta = new TH1D("reco_eta",";reco jet pseudorapidity;",100, -1.5, 1.5);
+  TH1D* reco_deltaetarap = new TH1D("reco_deltaetarap","reco eta - rap;#eta - #mathit{y};",100, -0.45, 0.45);
+  TH2D* reco_etarap = new TH2D("reco_etarap","reco eta - rap;#eta;#textit{y}",100, -1.5, 1.5, 100, -1.5, 1.5);
+
+  IP_geom_matcher js_reader(f_in, use_probe, bkg_seed, MAX_NEVENTS);
+  if (bulk_ttree == nullptr) { 
+    bulk_ttree = js_reader.tree; 
+    separate_bulk = false; 
+  }
 
   float pt_IP;
   float eta_IP;
@@ -103,10 +142,6 @@ int main(int nargs, char **argv)
 
   float dR_IPtoT = -1.;
   float dR_TtoR  = -1.;
-
-  // vector<float> pt_truth_const; // the pt of the constituents of the leading truth jet
-  // vector<bool> ismatched_const; // whether the constituents of the leading truth jet are matched to a reco jet
-  /* float reco_pt_truthconst;     // the collective "jet pt" of the ismatched_const constituents */
 
   float rho_bkg_thermal{}; // background est. without pythia
   float rho_bkg_thermalandjet{}; // background est. with added jetscape (ignore 2 leading hardest)
@@ -126,9 +161,6 @@ int main(int nargs, char **argv)
   tree->Branch("IP_phi", &phi_IP);
 
   tree->Branch("resid_rhoA", &resid_rhoA);
-  /* tree->Branch("pt_truth_const", &pt_truth_const); */
-  /* tree->Branch("ismatched_const", &ismatched_const); */
-  /* tree->Branch("reco_pt_truthconst", &reco_pt_truthconst); */
 
   tree->Branch("Xsec", &Xsec);
   tree->Branch("XsecSigma", &XsecSigma);
@@ -137,6 +169,7 @@ int main(int nargs, char **argv)
 
   vector<JETBRANCH_OPTIONS> truth_options = {};
   if (fill_vec_cpt) truth_options.push_back(JETBRANCH_OPTIONS::VEC_CONSTITUENTS);
+
   JetBranch jb_truth{truth_options};
   jb_truth.nbranch_const = 10;
   jb_truth.add_to_ttree(tree, "truth_");
@@ -153,7 +186,7 @@ int main(int nargs, char **argv)
   bkgmaker.T = 0.291;
   bkgmaker.include_neutral = true;
   bkgmaker.minPtCut = 0.2;
-  bkgmaker.init();
+  bkgmaker.init(bulk_ttree, separate_bulk);
 
   // JetClusterer
   JetClusterer clusterer{};
@@ -190,7 +223,7 @@ int main(int nargs, char **argv)
   int nev = 0;
   while (js_reader.next_event())
   {
-    if (max_nevents != -1 && js_reader.i_event > max_nevents)
+    if (MAX_NEVENTS != -1 && js_reader.i_event > MAX_NEVENTS)
       break;
     if (!js_reader.cluster_match(clusterer))
       continue; // no IP close
@@ -206,6 +239,10 @@ int main(int nargs, char **argv)
     pt_IP = js_reader.IP_jet.pt();
     eta_IP = js_reader.IP_jet.eta();
     phi_IP = js_reader.IP_jet.phi();
+
+    IP_rap->Fill(js_reader.IP_jet.rap());
+    IP_eta->Fill(js_reader.IP_jet.eta());
+    IP_deltaetarap->Fill(js_reader.IP_jet.eta() -js_reader.IP_jet.rap());
 
     matched_IPtoT = js_reader.has_matched_IP;
     dR_IPtoT = js_reader.dR;
@@ -226,6 +263,10 @@ int main(int nargs, char **argv)
 
     jb_truth.fill(js_reader.truth_jet, zero, true, js_reader.sigma);
 
+    truth_rap->Fill(js_reader.truth_jet.rap());
+    truth_eta->Fill(js_reader.truth_jet.eta());
+    truth_deltaetarap->Fill(js_reader.truth_jet.eta()-js_reader.truth_jet.rap());
+    /* std::cout << " " << js_reader.truth_jet.rap() << " vs " << js_reader.truth_jet.eta() << std::endl; */
 
     for (int n_bkg = 0; n_bkg < N_BKGSAMPLES; ++n_bkg)
     {
@@ -268,7 +309,25 @@ int main(int nargs, char **argv)
         }
       }
       auto& reco_jet = closest_jets[i_match];
+
+      reco_rap->Fill(reco_jet.rap());
+      reco_eta->Fill(reco_jet.eta());
+      reco_deltaetarap->Fill(reco_jet.eta()-reco_jet.rap());
+      reco_etarap->Fill(     reco_jet.eta(),reco_jet.rap());
+
       dR_TtoR = js_reader.truth_jet.delta_R(reco_jet);
+
+      dR_rap->Fill(dR_TtoR);
+
+      float temp_deta = js_reader.truth_jet.eta() - reco_jet.eta();
+      float temp_dphi = js_reader.truth_jet.phi() - reco_jet.phi();
+      while (temp_dphi > M_PI) temp_dphi -= 2*M_PI;
+      while (temp_dphi < -M_PI) temp_dphi += 2*M_PI;
+      float temp_dR = sqrt(temp_deta*temp_deta+temp_dphi*temp_dphi);
+      dR_eta->Fill(temp_dR);
+      /* std::cout << " FIXME dR_TtoR " << dR_TtoR << " " << fixme_dR << " dR_with_rap: " << fixme_dR_rap << std::endl; */
+
+
 
       // fill in the leading jet pair
       float zero;

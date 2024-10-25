@@ -5,7 +5,7 @@
 #include <TFile.h>
 #include "fastjet/PseudoJet.hh"
 #include <fastjet/JetDefinition.hh>
-#include "JTWalker.h"
+/* #include "JTWalker.h" */
 
 #include <string>
 #include <vector>

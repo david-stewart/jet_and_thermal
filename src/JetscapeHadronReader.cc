@@ -102,7 +102,10 @@ bool JetscapeHadronReader::cluster_jets(JetClusterer& clusterer) {
 
     auto n_jets = (*pt).size();
     vector<fastjet::PseudoJet> parts;
-    for (auto i = 0; i<n_jets; ++i) parts.push_back(make_pseudojet((*pt)[i], (*eta)[i], (*phi)[i], (*E)[i]));
+    for (auto i = 0; i<n_jets; ++i) { 
+        parts.push_back(make_pseudojet((*pt)[i], (*eta)[i], (*phi)[i], (*E)[i]));
+        std::cout << " FIXME A0: E: " << (*E)[i] << std::endl;
+    }
     auto jets = clusterer(parts);
     if (jets.size() == 0) {
         has_leading_jet = false;
@@ -111,6 +114,9 @@ bool JetscapeHadronReader::cluster_jets(JetClusterer& clusterer) {
         leading_jet_constituents.clear();
         return true;
     }  
+    for (auto& FIXME_jet : jets) {
+        std::cout << " FIXME A1: jet-rap(" << FIXME_jet.rap() <<") eta(" << FIXME_jet.eta() <<") diff(" << (FIXME_jet.eta()-FIXME_jet.rap()) << std::endl;
+    }
     leading_jet = jets[0];
     has_leading_jet = true;
 

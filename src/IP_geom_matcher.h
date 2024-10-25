@@ -19,7 +19,8 @@
 
 class IP_geom_matcher {
     public:
-    IP_geom_matcher(const std::string& fname);
+    IP_geom_matcher(const std::string& fname, bool _use_probe=false, int
+            _rng_seed = 0, int n_probe_events=1000);
     /* std::vector<fastjet::PseudoJet> operator()(); */
 
     bool has_matched_IP { false }; // looking at leading parton only
@@ -50,6 +51,12 @@ class IP_geom_matcher {
 
     TFile *fin;
     TTree* tree;
+
+    bool use_probe { false };
+    TRandom3 rng3;
+    int n_probe_events { 1000 };
+
+    const double PROBE_PT = 30.;
 
     long long int nEvents;
     long long int i_event {-1};
