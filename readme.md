@@ -1,6 +1,85 @@
-# Higher Level Code Supporting Analysis:
+# Analysis Code:
+
+## JETSCAPE
+
+The input data was generated with [site](https://github.com/jetscape).
+Download getscape and compile and run it according to JETSCAPE
+documentation. 
+
+JETSCAPE is run with input `xml` files. The input files for this analysis are
+located in the `jetscape_input` directory. All these input `.xml` files are
+located in the `jetscape_input` directory. These files are in the following 
+directories:
+
+  1. `jetscape_input/pp/xml/`: The input files for the non-quenched jets
+  2. `jetscape_input/lbt_brick/`: input files for jets quenched in `bricks` of QGP
+  3. `jetscape_input/hydro/`: input files for the full hydro: Au+Au events,
+      0-5% centrality with hydrodynamically simulated QGP evolution.
+
+Note that each input `xml` file has a set values for the corresponding output
+file (`outputFilename`) that is set from where these files were intially run
+and will need to be updated appropriately.
+
+## Process JETSCAPE output files:
+
+Unzip the `.dat.gz` output files from JETSCAPE for the non-hydro runs and write
+the output into input `*.root` files by:
+
+  `./scripts/run_gunziptree.py [input-dir-path]`
+
+This will use the the `scripts/gunziptree.py` on each of the files in the
+provided file path.
+
+For the hydro events, run `./scripts/gunziptree_hydro.py [input-file-name]` for
+each hydro file individually. Additionally, use the ROOT `hadd` utility to
+combine all the hydro `.root` files together into a single input file that contians
+all the hydro backgrounds that will be used as the background embedding for the 
+`pp` and `lbt_brick` jets.
+
+## Run the C++ code to cluster the jets together and do the jet matching. For
+the hydro events, the backgrounds in the hydro file will be used. Otherwise, an
+input file from the `hydro` events will be used.
+
+To do this:
+`cd jet_and_thermal`
+`make`
+`./bin/IP_match_trees [opts]`
+
+The options used depend on the run, and are:
+  1. input file name
+  2. maximum number of events, (-1 if using all events)
+  3. output file name
+  4. string: either 'is_hydro' if this is a hydro event, otherwise it is the
+     name of the file containing the background distributions from the hydro
+     runs which was previoudly `hadd`-ed together
+  5. 0 or 1, determining if a vector of the pT's of all the jets constitents
+     should be written to the output tree. Generally this isn't needed
+  6. The number of background samples used (generally can be 1)
+  7. The seed used for the random generator which isn't used in the default use
+     of the code
+
+If runing a single file, it is advisable to use a shell script to run these. An
+example file is provided as
+`jet_and_thermal/test_IP.sh`
+
+For running all the events in a directory, can use script
+`scripts/run_IP_match_trees.py`. Note that this script must be modified in order
+to point to the hydro background file location, as well as to determin how many
+core can be used simultaneously.
+
+for the `pp` and `lbt_brick` runs, use ROOT's hadd utility to join the output 
+files together. Then use the `script/to_parquet.py` script to convert the ROOT
+files into `parquet` files, which is the file format used in the ipynb in the 
+following steps.
+
+##
 
 General process:
+
+The rest of this analysis was run in jupyter notebooks.
+
+
+
 
  1. Run JETSCAPE to simulate events. These are of 2 (/3) flavors:
     - Au+Au events, 0-5% centrality with hydrodynamically simulated QGP
