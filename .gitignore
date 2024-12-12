@@ -1,0 +1,10 @@
+bin
+obj
+**.o
+**.root
+**/*.pdf
+**/*.png
+**/*.gz
+*.ipynb_checkpoints
+arch
+**/.pdf

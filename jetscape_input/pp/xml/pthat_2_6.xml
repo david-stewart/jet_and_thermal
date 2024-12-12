@@ -1,0 +1,41 @@
+
+<?xml version="1.0"?>
+
+<jetscape>
+
+  <nEvents> 211581 </nEvents>
+
+  <outputFilename>../config/no_brick/gz_files/pthat_2_6</outputFilename>
+  <JetScapeWriterAscii> off </JetScapeWriterAscii>
+  <JetScapeWriterAsciiGZ> on </JetScapeWriterAsciiGZ>
+  <JetScapeWriterFinalStateHadronsAscii> off </JetScapeWriterFinalStateHadronsAscii>
+  <JetScapeWriterFinalStatePartonsAscii> off </JetScapeWriterFinalStatePartonsAscii>
+
+  <!-- Hard Process -->
+  <Hard>
+    <PythiaGun>
+      <pTHatMin>2</pTHatMin>
+      <pTHatMax>6</pTHatMax>
+      <eCM>200</eCM>
+    </PythiaGun>
+  </Hard>
+
+  <!--Eloss Modules -->
+  <Eloss>
+    <Matter>
+      <Q0> 1.0 </Q0>
+      <in_vac> 1 </in_vac>
+      <vir_factor> 0.25 </vir_factor>
+      <recoil_on> 0 </recoil_on>
+      <broadening_on> 0 </broadening_on>
+      <brick_med> 0 </brick_med>
+    </Matter>
+  </Eloss>
+
+  <!-- Jet Hadronization Module -->
+  <JetHadronization>
+    <name>colorless</name>
+  </JetHadronization>
+
+</jetscape>
+

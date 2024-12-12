@@ -1,6 +1,6 @@
-# Analysis Code:
+# Analysis Code and Process:
 
-## JETSCAPE
+## Run JETSCAPE
 
 The input data was generated with [site](https://github.com/jetscape).
 Download getscape and compile and run it according to JETSCAPE
@@ -36,11 +36,14 @@ combine all the hydro `.root` files together into a single input file that conti
 all the hydro backgrounds that will be used as the background embedding for the 
 `pp` and `lbt_brick` jets.
 
-## Run the C++ code to cluster the jets together and do the jet matching. For
-the hydro events, the backgrounds in the hydro file will be used. Otherwise, an
-input file from the `hydro` events will be used.
+## Run the C++ Code to Cluster and Match Jets
+
+Use the `.root` files generates as input for the C++ binary. For the hydro
+events, the backgrounds in the hydro file will be used. Otherwise, an input
+file from the `hydro` events will be used.
 
 To do this:
+
 `cd jet_and_thermal`
 `make`
 `./bin/IP_match_trees [opts]`
@@ -53,35 +56,128 @@ The options used depend on the run, and are:
      name of the file containing the background distributions from the hydro
      runs which was previoudly `hadd`-ed together
   5. 0 or 1, determining if a vector of the pT's of all the jets constitents
-     should be written to the output tree. Generally this isn't needed
+     should be written to the output tree. Generally this isn't required.
   6. The number of background samples used (generally can be 1)
-  7. The seed used for the random generator which isn't used in the default use
-     of the code
+  7. The seed used for the random generator (note that this isn't used in 
+          the code's default usecase)
 
-If runing a single file, it is advisable to use a shell script to run these. An
-example file is provided as
-`jet_and_thermal/test_IP.sh`
+## Transform Output data in Input `.parquet` Files for Ipynb
 
-For running all the events in a directory, can use script
-`scripts/run_IP_match_trees.py`. Note that this script must be modified in order
-to point to the hydro background file location, as well as to determin how many
-core can be used simultaneously.
+The output files from `IP_match_tree` are all root files. For all the `pp` and
+`lbt_brick` runs, use ROOT's hadd utility to join the output files together. 
+Convert these new output files (the joined ones for `pp` and `lbt_brick` runs and 
+individual block files one-by-one) to `.parquet` files. To do this, 
+`script/to_parquet.py` may be used.
 
-for the `pp` and `lbt_brick` runs, use ROOT's hadd utility to join the output 
-files together. Then use the `script/to_parquet.py` script to convert the ROOT
-files into `parquet` files, which is the file format used in the ipynb in the 
-following steps.
+## Do the analyses with the `Ipynb` files
 
-##
+### Generate input files flat in pT truth jet:
 
-General process:
+In `./Ipynb/NoBrickInput`:
 
-The rest of this analysis was run in jupyter notebooks.
+Here `NoBrickInput' is just misnomer for `pp` (no quenching) input.
+
+ - Run `min_bias_input.ipynb`. Make sure that notebook has the input path to
+   the parquet file containing all the `pp` jets from the `IP_match_trees` C++
+   process.
+   
+   output: `min_bias_input.parquet`
+
+   This is the output file used for training Neural Networks.
+
+ - Run `build_Xsec.ipybn`
+   input: the input files from `IP_match_trees` (same as for `min_bias_input.ipybn`)
+   output: directory `Xsec_groups` with dataframes for each Xsec bin
+  
+ - Run `build_Xsec_clean.ipynb`
+   input: output of `build_Xsec.ipynb`
+   output: files in which outliers have been removed
+   use of output: files required to make a weighted spectrum for the jets
+
+### Train the Neural Network:
+
+In `./NeuralNetwork`:
+
+ - `mkdir train`
+
+  Run the following notebooks:
+  n.b.: make sure that the input path to the flattened input is present.
+  - `train_reco_cpt.ipybn`
+  - `train_reco_all.ipybn`
+  - `train_angularity.ipybn`
+  - `train_nconsts.ipybn`
+  - `train_rhoA.ipybn`
+
+  Run the predictions on all of the input. Note that these use a local
+  python file `JetscapeFileGetter.py` Note that this script may be updated 
+  based on your file paths. This is done in each of these notebooks:
+
+  - Run the 5 NNs on the `pp` and `lbt_brick` runs:
+    - Predict_angularity.ipynb
+    - Predict_nconsts.ipynb
+    - Predict_reco_all.ipynb
+    - Predict_reco_cpt.ipynb
+    - Predict_rhoAonly.ipynb
+
+  - Run the NNs on the hydro runs:
+    - Predict_reco_hydro_all.ipynb
+    - Predict_reco_hydro_angularity.ipynb
+    - Predict_reco_hydro_cpt.ipynb
+    - Predict_reco_hydro_nconsts.ipynb
+    - Predict_reco_hydro_rhoAonly.ipynb
+
+  For each input file, an output `.json` file containing a few summary
+  statistics are generated (in addition to a few plots).
+
+  Collect and plot a summary the results by running
+  - plot_allscores_paper.ipynb (this uses the python file
+          `../JetMatchesSet.py`. 
+
+### Analysize the Fragmentation Function:
+
+  - To make the paper figure from the fragementation of the input jets (note
+    that this uses the output files from the C++ program `IP_match_trees`, as
+    it reads the pT of all the constituents of each jet.
+  
+    Use file: `./FragFunc/FIG_fragfn.ipynb`
+
+### Make a `pp` and a quenched spectra:
+
+  In `Ipynb/Threep5FermiInput`:
+
+  - Run `min_bias_input.ipnb` (make sure the input file is to the `.parquet` file
+  with all the 3.5 fm input data)
+
+ - Run `build_Xsec.ipybn`
+ - Run `build_Xsec_clean.ipynb`
+
+ These last two files are entirely analogous to those in `NoBrickInput`.
+ Manually check the directories so that there are comparable events in each
+ cross section bin for both. In analysis, two of the three highest cross-section
+ groups were represented in the NoBrickInput data (although this is all essentially
+ min-bias data). If needed, remove them here, too.
+
+  - Apply the neural network correction on the bricks, so run:
+  `M_angularity_NoBrick/ApplyModel.ipynb`
+  `M_AB_method_NoBrick/ApplyModel.ipynb` note: this isn't a nueral network
+  `M_reco_all_NoBrick/ApplyModel.ipynb`
+  `M_reco_cpt_NoBrick/ApplyModel.ipynb`
+  `M_rhoAonly_NoBrick/ApplyModel.ipynb`
+  `M_nconsts_NoBrick/ApplyModel.ipynb`
+
+### Compare RAA like results, in `RAA_like`:
+  Make sure the input files are correct and run:
+   -  `./UnfoldPapar.ipynb`
+   -  `./plot_RAA_rat.ipynb`
 
 
 
+# ``Appendix:'' Logic and defais
 
- 1. Run JETSCAPE to simulate events. These are of 2 (/3) flavors:
+## Jetscape:
+
+   The JETSCAPE files are 2 (/3) flavors:
+
     - Au+Au events, 0-5% centrality with hydrodynamically simulated QGP
     evolution.
     These are the most sophisticated simulations available to us.
@@ -93,12 +189,11 @@ The rest of this analysis was run in jupyter notebooks.
     [site](https://github.com/jetscape). While running, the input files are
     `*.xml` files, and the output files are `*.dat.gz` files.
 
-  2. The output `*.dat.gz` files are processessed into `*.root` files using
-  python scripts, saved here as `gunziptree_hydro.py` and `gunziptree.py`, with
-  a bundling script `run_gunziptree.py`.
+## Jetscape output Processing Files
 
   These scripts separate these following outputs in the JETSCAPE `.dat.gz`
   output files:
+
     1. The `# Energy loss Shower Initating Parton: JetEnergyLoss` section --
     which gives the energies of the initial hard parton scattering.
     2. The `# Final State Hadrons` section: give all the final state hadrons
@@ -113,7 +208,9 @@ The rest of this analysis was run in jupyter notebooks.
   read in, separately, so that their backgrounds can be used with the jets
   quenched in the QGP events using bricks of plasma.
 
-  3. The C++ code `IP_match_trees` is run using the `*.root` files from the
+## C++ Code:
+
+ `IP_match_trees` is run using the `.root` files from the
   previous step. This enacts the following logic:
 
     - Check if there is a separate input `.root` files for the bulk background.
@@ -153,34 +250,10 @@ The rest of this analysis was run in jupyter notebooks.
        angularity and number of constituents, and the pT of the ten
        highest constituents) to the output file
   
-  4. Use the `ROOT` commandline utility to concatenate the output files together:
-  `hadd hadd.root *.root`
-
-  5. Convert `hadd.root` to `hadd.parquet`. (Done in this case with 
-  `./scripts/to_parquet` sometimes in conjunction with
-  `./scripts/run_to_parquet.py`)
-
-  6. Run the analysis on the input `.parquet` files using IPython notebooks
-  under the scripts in `./Ipynb`
-
-
-
-
-
-
-
-
-
-
-
-The `*.dat.gz` files divide the output into three 
-
-
-
 # Purpose:
 
 # Local c++ code:
-- Read output `*.root` files from JETSCAPE. These contain:
+- Read output `.root` files from JETSCAPE. These contain:
   - four-momenta of final state particles (principally hadrons)
   - four-momenta of initiating parton (IP) from pp collision
      - only keep IP up to |\eta|<1.0
@@ -200,3 +273,4 @@ The `*.dat.gz` files divide the output into three
   - user R=0.4 resolution parameter
 - Save the rho median background density estimator after embedding the JetScape final state particles:
   - same as for rho_bkg_thermal, but excluding the two highest-pT jets
+

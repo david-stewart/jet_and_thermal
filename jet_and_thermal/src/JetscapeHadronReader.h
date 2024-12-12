@@ -81,5 +81,4 @@ class JetscapeHadronReader {
     std::vector<fastjet::PseudoJet> operator()();
 }; 
 
-
 #endif
