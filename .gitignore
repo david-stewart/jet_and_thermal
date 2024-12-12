@@ -8,3 +8,6 @@ obj
 *.ipynb_checkpoints
 arch
 **/.pdf
+
+jet_and_thermal/scripts
+**/__pycache__
