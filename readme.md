@@ -3,7 +3,7 @@
 ## Run JETSCAPE
 
 The input data was generated with [site](https://github.com/jetscape).
-Download getscape and compile and run it according to JETSCAPE
+Download JETSCAPE, then compile and run it according to JETSCAPE
 documentation. 
 
 JETSCAPE is run with input `xml` files. The input files for this analysis are
@@ -38,7 +38,7 @@ all the hydro backgrounds that will be used as the background embedding for the
 
 ## Run the C++ Code to Cluster and Match Jets
 
-Use the `.root` files generates as input for the C++ binary. For the hydro
+Use the `.root` files from the step above as input for the C++ binary. For the hydro
 events, the backgrounds in the hydro file will be used. Otherwise, an input
 file from the `hydro` events will be used.
 
@@ -46,7 +46,7 @@ To do this:
 
 `cd jet_and_thermal`
 `make`
-`./bin/IP_match_trees [opts]`
+`./bin/IP_match_trees [options]`
 
 The options used depend on the run, and are:
   1. input file name
@@ -58,8 +58,8 @@ The options used depend on the run, and are:
   5. 0 or 1, determining if a vector of the pT's of all the jets constitents
      should be written to the output tree. Generally this isn't required.
   6. The number of background samples used (generally can be 1)
-  7. The seed used for the random generator (note that this isn't used in 
-          the code's default usecase)
+  7. The seed used for the random number generator (note that this isn't used in 
+          the code's default use case, or in the analysis as described here)
 
 ## Transform Output data in Input `.parquet` Files for Ipynb
 
@@ -75,7 +75,7 @@ individual block files one-by-one) to `.parquet` files. To do this,
 
 In `./Ipynb/NoBrickInput`:
 
-Here `NoBrickInput' is just misnomer for `pp` (no quenching) input.
+Here `NoBrickInput` is just misnomer for `pp` (no quenching) input.
 
  - Run `min_bias_input.ipynb`. Make sure that notebook has the input path to
    the parquet file containing all the `pp` jets from the `IP_match_trees` C++
@@ -109,8 +109,9 @@ In `./NeuralNetwork`:
   - `train_rhoA.ipybn`
 
   Run the predictions on all of the input. Note that these use a local
-  python file `JetscapeFileGetter.py` Note that this script may be updated 
-  based on your file paths. This is done in each of these notebooks:
+  python file `JetscapeFileGetter.py`. Note that this script may need to 
+  be updated based on your file paths. This is done in each of 
+  these notebooks:
 
   - Run the 5 NNs on the `pp` and `lbt_brick` runs:
     - Predict_angularity.ipynb
@@ -127,19 +128,18 @@ In `./NeuralNetwork`:
     - Predict_reco_hydro_rhoAonly.ipynb
 
   For each input file, an output `.json` file containing a few summary
-  statistics are generated (in addition to a few plots).
+  statistics are generated in addition to a few plots.
 
   Collect and plot a summary the results by running
-  - plot_allscores_paper.ipynb (this uses the python file
+  - plot_allscores_paper.ipynb. This notebook uses the python file
           `../JetMatchesSet.py`. 
 
 ### Analysize the Fragmentation Function:
 
-  - To make the paper figure from the fragementation of the input jets (note
-    that this uses the output files from the C++ program `IP_match_trees`, as
+  - Make the paper figure from the fragementation of the input jets with
+    `./FragFunc/FIG_fragfn.ipynb`.
+    This notebook uses the output files from the C++ program `IP_match_trees`, as
     it reads the pT of all the constituents of each jet.
-  
-    Use file: `./FragFunc/FIG_fragfn.ipynb`
 
 ### Make a `pp` and a quenched spectra:
 
