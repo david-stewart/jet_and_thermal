@@ -154,8 +154,8 @@ In `./NeuralNetwork`:
  These last two files are entirely analogous to those in `NoBrickInput`.
  Manually check the directories so that there are comparable events in each
  cross section bin for both. In analysis, two of the three highest cross-section
- groups were represented in the NoBrickInput data (although this is all essentially
- min-bias data). If needed, remove them here, too.
+ groups were represented only in the NoBrickInput data (although this is all essentially
+ min-bias data) and were consequently removed. If needed, remove them here, too.
 
   - Apply the neural network correction on the bricks, so run:
     - M_angularity_NoBrick/ApplyModel.ipynb
@@ -168,17 +168,17 @@ In `./NeuralNetwork`:
 ### Compare RAA like results
 
   In `RAA_like`:
+ 
   Make sure the input files are correct and run:
    -  `./UnfoldPapar.ipynb`
    -  `./plot_RAA_rat.ipynb`
    -  `./UnfoldPapar.ipynb`
 
-   Note that the input looks must be modified to fun on all the desired inputs.
+   Note that the input paths must be modified so that these run on all the desired inputs.
    The logic will collect and weight the spectra from each of the input files
    and add them together. It will also make a response matrix and do the unfolding.
-   
 
-#  Appendix: Some Additiona and Repeated Logic and Detail
+#  Appendix: Some Additiona (and repeatesd) Logic and Details
 
 ## Jetscape:
 
